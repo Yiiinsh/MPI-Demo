@@ -6,7 +6,7 @@
 #include "pgmio.h"
 
 #define MAX_LOOP 1500
-#define THRESHOLD 0.1
+#define THRESHOLD 0.05
 #define RANK_MASTER 0
 #define DEFAULT_TAG 1
 #define LEFT_SEND_TAG 2
@@ -77,17 +77,18 @@ int main(int argc, char **argv)
     double start = MPI_Wtime();
 
     // Memory allocation
-    int plength = length / dims[DIM_X];
+    int x_step = length / dims[DIM_X];
+    int y_step = width / dims[DIM_Y];
+    int plength = x_step;
     if (coords[0] == dims[0] - 1)
     {
         plength = length / dims[DIM_X] + length % dims[DIM_X];
     }
-    int pwidth = width / dims[DIM_Y];
+    int pwidth = y_step;
     if (coords[1] == dims[1] - 1)
     {
         pwidth = width / dims[DIM_Y] + width % dims[DIM_Y];
     }
-
     fprintf(stdout, "rank %d plength %d, pwidth %d\n", rank, plength, pwidth);
 
     double **masterbuf, **img_new, **img_old, **img_edge;
@@ -101,8 +102,6 @@ int main(int argc, char **argv)
     pgmread(input_file_name, master_content, length, width);
 
     // Copy corresponding partition into img_edge
-    int x_step = length / dims[DIM_X];
-    int y_step = width / dims[DIM_Y];
     for (int i = 0; i != plength; ++i)
     {
         for (int j = 0; j != pwidth; ++j)
@@ -123,7 +122,7 @@ int main(int argc, char **argv)
     {
         for (int i = 1; i <= plength; ++i)
         {
-            double val = boundaryval(coords[0] * plength + i, length);
+            double val = boundaryval(coords[0] * x_step + i, length);
             img_old[i][0] = (int)(255.0 * val);
         }
     }
@@ -131,7 +130,7 @@ int main(int argc, char **argv)
     {
         for (int i = 1; i <= plength; ++i)
         {
-            double val = boundaryval(coords[0] * plength + i, length);
+            double val = boundaryval(coords[0] * x_step + i, length);
             img_old[i][pwidth + 1] = (int)(255.0 * (1.0 - val));
         }
     }
@@ -189,7 +188,8 @@ int main(int argc, char **argv)
         MPI_Allreduce(&delta, &overall_delta, 1, MPI_DOUBLE, MPI_MAX, comm);
         if (overall_delta <= THRESHOLD)
         {
-            if(RANK_MASTER == rank) {
+            if (is_master(rank))
+            {
                 printf("Finish at iteration %d, with delta : %.5f\n", cnt, overall_delta);
             }
             break;
@@ -222,9 +222,9 @@ int main(int argc, char **argv)
     // End
     double end = MPI_Wtime();
     MPI_Barrier(comm);
-    if (RANK_MASTER == rank)
+    if (is_master(rank))
     {
-        fprintf(stdout, "Execution time %.3f\n", end - start);
+        fprintf(stdout, "Execution time %.5f\n", end - start);
         fprintf(stdout, "End...\n");
     }
 
