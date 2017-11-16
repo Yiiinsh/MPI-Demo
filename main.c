@@ -76,11 +76,18 @@ int main(int argc, char **argv)
 
     // Memory allocation
     int plength = length / dims[DIM_X];
-    int pwidth = width / dims[DIM_Y];
-    if (is_master(rank))
+    if (coords[0] == dims[0] - 1)
     {
-        fprintf(stdout, "plength %d, pwidth %d\n", plength, pwidth);
+        plength = length / dims[DIM_X] + length % dims[DIM_X];
     }
+    int pwidth = width / dims[DIM_Y];
+    if (coords[1] == dims[1] - 1)
+    {
+        pwidth = width / dims[DIM_Y] + width % dims[DIM_Y];
+    }
+
+    fprintf(stdout, "rank %d plength %d, pwidth %d\n", rank, plength, pwidth);
+
     double **masterbuf, **img_new, **img_old, **img_edge;
     double *master_content, *new_content, *old_content, *edge_content;
     double_2d_array_allocation(&masterbuf, &master_content, length, width);
@@ -92,11 +99,13 @@ int main(int argc, char **argv)
     pgmread(input_file_name, master_content, length, width);
 
     // Copy corresponding partition into img_edge
+    int x_step = length / dims[DIM_X];
+    int y_step = width / dims[DIM_Y];
     for (int i = 0; i != plength; ++i)
     {
         for (int j = 0; j != pwidth; ++j)
         {
-            img_edge[i + 1][j + 1] = masterbuf[coords[DIM_X] * plength + i][coords[DIM_Y] * pwidth + j];
+            img_edge[i + 1][j + 1] = masterbuf[coords[DIM_X] * x_step + i][coords[DIM_Y] * y_step + j];
         }
     }
 
@@ -186,7 +195,7 @@ int main(int argc, char **argv)
     {
         for (int j = 0; j != pwidth; ++j)
         {
-            masterbuf[coords[DIM_X] * plength + i][coords[DIM_Y] * pwidth + j] = img_old[i + 1][j + 1];
+            masterbuf[coords[DIM_X] * x_step + i][coords[DIM_Y] * y_step + j] = img_old[i + 1][j + 1];
         }
     }
 
