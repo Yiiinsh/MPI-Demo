@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
+#include <math.h>
 
 #include "pgmio.h"
 
 #define MAX_LOOP 1500
+#define THRESHOLD 0.1
 #define RANK_MASTER 0
 #define DEFAULT_TAG 1
 #define LEFT_SEND_TAG 2
@@ -175,12 +177,22 @@ int main(int argc, char **argv)
         MPI_Wait(&up_send_request, &status);
         MPI_Wait(&down_send_request, &status);
 
+        double delta = 0, overall_delta = 0;
         for (int i = 1; i <= plength; ++i)
         {
             for (int j = 1; j <= pwidth; ++j)
             {
+                delta = fabs(img_new[i][j] - img_old[i][j]) > delta ? fabs(img_new[i][j] - img_old[i][j]) : delta;
                 img_old[i][j] = img_new[i][j];
             }
+        }
+        MPI_Allreduce(&delta, &overall_delta, 1, MPI_DOUBLE, MPI_MAX, comm);
+        if (overall_delta <= THRESHOLD)
+        {
+            if(RANK_MASTER == rank) {
+                printf("Finish at iteration %d, with delta : %.5f\n", cnt, overall_delta);
+            }
+            break;
         }
     }
 
