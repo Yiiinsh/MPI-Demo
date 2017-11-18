@@ -65,7 +65,7 @@ int main(int argc, char **argv)
     // Get neighbor
     int rank_up, rank_down, rank_left, rank_right;
     MPI_Cart_shift(cart_comm, 0, 1, &rank_left, &rank_right);
-    MPI_Cart_shift(cart_comm, 1, 1, &rank_up, &rank_down);
+    MPI_Cart_shift(cart_comm, 1, 1, &rank_down, &rank_up);
     fprintf(stdout, "Neighbors of rank %d : Left %d Right %d Up %d Down %d\n", rank, rank_left, rank_right, rank_up, rank_down);
 
     // Start
@@ -99,16 +99,19 @@ int main(int argc, char **argv)
     double_2d_array_allocation(&img_edge, &edge_content, plength + 2, pwidth + 2);
 
     fprintf(stdout, "Rank %d reading from file %s...\n", rank, input_file_name);
-    pgmread(input_file_name, master_content, length, width);
+    part_pgmread(input_file_name, &(img_edge[1][1]), plength, pwidth, coords[0] * x_step, coords[1] * y_step, 2);
+    // pgmread(input_file_name, master_content, length, width);
 
     // Copy corresponding partition into img_edge
-    for (int i = 0; i != plength; ++i)
-    {
-        for (int j = 0; j != pwidth; ++j)
-        {
-            img_edge[i + 1][j + 1] = masterbuf[coords[DIM_X] * x_step + i][coords[DIM_Y] * y_step + j];
-        }
-    }
+    // for (int i = 0; i != plength; ++i)
+    // {
+    //     for (int j = 0; j != pwidth; ++j)
+    //     {
+    //         img_edge[i + 1][j + 1] = masterbuf[coords[DIM_X] * x_step + i][coords[DIM_Y] * y_step + j];
+    //         printf("%d ", img_edge[i + 1][j + 1] == buf[i + 1][j + 1]);
+    //     }
+    //     printf("\n");
+    // }
 
     // Processing
     for (int i = 0; i != plength + 2; ++i)
@@ -123,7 +126,8 @@ int main(int argc, char **argv)
         for (int i = 1; i <= plength; ++i)
         {
             double val = boundaryval(coords[0] * x_step + i, length);
-            img_old[i][0] = (int)(255.0 * val);
+            // img_old[i][0] = (int)(255.0 * val);
+            img_old[i][pwidth + 1] = (int)(255.0 * (1.0 - val));
         }
     }
     if (MPI_PROC_NULL == rank_down)
@@ -131,7 +135,8 @@ int main(int argc, char **argv)
         for (int i = 1; i <= plength; ++i)
         {
             double val = boundaryval(coords[0] * x_step + i, length);
-            img_old[i][pwidth + 1] = (int)(255.0 * (1.0 - val));
+            // img_old[i][pwidth + 1] = (int)(255.0 * (1.0 - val));
+            img_old[i][0] = (int)(255.0 * val);
         }
     }
 
@@ -148,8 +153,8 @@ int main(int argc, char **argv)
     {
         MPI_Issend(&(img_old[1][0]), 1, column_type, rank_left, LEFT_SEND_TAG, comm, &left_send_request);
         MPI_Issend(&(img_old[plength][0]), 1, column_type, rank_right, RIGHT_SEND_TAG, comm, &right_send_request);
-        MPI_Issend(&(img_old[0][1]), 1, row_type, rank_up, DEFAULT_TAG, comm, &down_send_request);
-        MPI_Issend(&(img_old[0][pwidth]), 1, row_type, rank_down, DEFAULT_TAG, comm, &up_send_request);
+        MPI_Issend(&(img_old[0][1]), 1, row_type, rank_down, DEFAULT_TAG, comm, &down_send_request);
+        MPI_Issend(&(img_old[0][pwidth]), 1, row_type, rank_up, DEFAULT_TAG, comm, &up_send_request);
         for (int i = 2; i <= plength - 1; ++i)
         {
             for (int j = 2; j <= pwidth - 1; ++j)
@@ -159,8 +164,8 @@ int main(int argc, char **argv)
         }
         MPI_Recv(&(img_old[0][0]), 1, column_type, rank_left, LEFT_FROM_TAG, comm, &left_recv_status);
         MPI_Recv(&(img_old[plength + 1][0]), 1, column_type, rank_right, RIGHT_FROM_TAG, comm, &right_recv_status);
-        MPI_Recv(&(img_old[0][0]), 1, row_type, rank_up, DEFAULT_TAG, comm, &down_recv_status);
-        MPI_Recv(&(img_old[0][pwidth + 1]), 1, row_type, rank_down, DEFAULT_TAG, comm, &up_recv_status);
+        MPI_Recv(&(img_old[0][0]), 1, row_type, rank_down, DEFAULT_TAG, comm, &down_recv_status);
+        MPI_Recv(&(img_old[0][pwidth + 1]), 1, row_type, rank_up, DEFAULT_TAG, comm, &up_recv_status);
         for (int j = 1; j <= pwidth; ++j)
         {
             img_new[1][j] = 0.25 * (img_old[1 - 1][j] + img_old[1 + 1][j] + img_old[1][j - 1] + img_old[1][j + 1] - img_edge[1][j]);
@@ -196,26 +201,62 @@ int main(int argc, char **argv)
         }
     }
 
-    for (int i = 0; i != length; ++i)
+    MPI_Datatype send_type;
+    MPI_Type_vector(plength, pwidth, pwidth + 2, MPI_DOUBLE, &send_type);
+    MPI_Type_commit(&send_type);
+    if (!is_master(rank))
     {
-        for (int j = 0; j != width; ++j)
-        {
-            masterbuf[i][j] = 0;
-        }
+        // Other send to master
+        MPI_Ssend(&(img_old[1][1]), 1, send_type, RANK_MASTER, DEFAULT_TAG, comm);
     }
-    for (int i = 0; i != plength; ++i)
-    {
-        for (int j = 0; j != pwidth; ++j)
-        {
-            masterbuf[coords[DIM_X] * x_step + i][coords[DIM_Y] * y_step + j] = img_old[i + 1][j + 1];
-        }
-    }
-
-    MPI_Reduce(master_content, master_content, length * width, MPI_DOUBLE, MPI_SUM, RANK_MASTER, comm);
+    MPI_Type_free(&send_type);
+    
     if (is_master(rank))
     {
+        // Init grid of master
+        for(int i = 0; i != plength; ++i) {
+            for(int j = 0; j != pwidth; ++j) {
+                masterbuf[i][j] = img_old[i + 1][j + 1];
+            }
+        }
+
+        // Recv other grids
+        for(int r = 1; r != size; ++r) {
+            int recv_coords[NDIMS];
+            MPI_Cart_coords(cart_comm, r, NDIMS, recv_coords);
+            int recv_plength = (recv_coords[DIM_X] == dims[DIM_X] - 1) ? x_step + length % dims[DIM_X] : x_step;
+            int recv_pwidth = (recv_coords[DIM_Y] == dims[DIM_Y] - 1) ? y_step + width % dims[DIM_Y] : y_step;
+
+            MPI_Datatype recv_type;
+            MPI_Type_vector(recv_plength, recv_pwidth, width, MPI_DOUBLE, &recv_type);
+            MPI_Type_commit(&recv_type);
+            MPI_Recv(&(masterbuf[recv_coords[DIM_X] * x_step][recv_coords[DIM_Y] * y_step]), 1, recv_type, r, DEFAULT_TAG, comm, MPI_STATUS_IGNORE);
+            MPI_Type_free(&recv_type);
+        }
+
+        // Output 
         pgmwrite(output_file_name, master_content, length, width);
     }
+
+    // for (int i = 0; i != length; ++i)
+    // {
+    //     for (int j = 0; j != width; ++j)
+    //     {
+    //         masterbuf[i][j] = 0;
+    //     }
+    // }
+    // for (int i = 0; i != plength; ++i)
+    // {
+    //     for (int j = 0; j != pwidth; ++j)
+    //     {
+    //         masterbuf[coords[DIM_X] * x_step + i][coords[DIM_Y] * y_step + j] = img_old[i + 1][j + 1];
+    //     }
+    // }
+    // MPI_Reduce(master_content, master_content, length * width, MPI_DOUBLE, MPI_SUM, RANK_MASTER, comm);
+    // if (is_master(rank))
+    // {
+    //     pgmwrite(output_file_name, master_content, length, width);
+    // }
 
     printf("End processing on rank %d.\n", rank);
 

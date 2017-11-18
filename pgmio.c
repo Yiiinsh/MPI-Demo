@@ -199,3 +199,68 @@ void pgmwrite(char *filename, void *vx, int nx, int ny)
     fprintf(fp, "\n");
   fclose(fp);
 }
+
+/*
+ *  Routine to read a  part of PGM data file into a 2D floating 
+ *  point array x[nx][ny].
+ * 
+ *  (start_x, start_y) indicates the left-most buttom point of this grid
+ * 
+ *  Note that this assumes a single line comment and no other white space.
+ */
+
+void part_pgmread(char *filename, void *vx, int nx, int ny, int start_x, int start_y, int row_offset)
+{
+  FILE *fp;
+
+  int nxt, nyt, i, j, t;
+  char dummy[MAXLINE];
+  int n = MAXLINE;
+
+  char *cret;
+  int iret;
+
+  double *x = (double *)vx;
+
+  if (NULL == (fp = fopen(filename, "r")))
+  {
+    fprintf(stderr, "pgmread: cannot open <%s>\n", filename);
+    exit(-1);
+  }
+
+  cret = fgets(dummy, n, fp);
+  cret = fgets(dummy, n, fp);
+
+  iret = fscanf(fp, "%d %d", &nxt, &nyt);
+
+  if (nx > nxt || ny > nyt)
+  {
+    fprintf(stderr,
+            "pgmread: size mismatch, (nx,ny) = (%d,%d) less than (%d,%d)\n",
+            nxt, nyt, nx, ny);
+    exit(-1);
+  }
+
+  iret = fscanf(fp, "%d", &i);
+
+  // Skip the first few elements doesnot related to given grid
+  for (int cnt = 0; cnt != ((nyt - start_y - ny) * nxt + start_x); ++cnt)
+  {
+    iret = fscanf(fp, "%d", &i);
+  }
+
+  for (j = 0; j < ny; j++)
+  {
+    for (i = 0; i < nx; i++)
+    {
+      iret = fscanf(fp, "%d", &t);
+      x[(ny - j - 1) + ny * i + i * row_offset] = t;
+    }
+    // Skip elements doesnot related to given grid
+    for(int cnt = 0; cnt != nxt - nx; ++cnt) {
+      iret = fscanf(fp, "%d", &i);
+    }
+  }
+
+  fclose(fp);
+}
