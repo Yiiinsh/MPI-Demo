@@ -4,9 +4,15 @@
 #include <math.h>
 
 #include "pgmio.h"
+#include "arraytool.h"
 
+/* Check master rank */
+#define is_master(rank) (0 == rank)
+
+/* Processing related */
 #define MAX_LOOP 1500
 #define THRESHOLD 0.05
+/* MPI related */
 #define RANK_MASTER 0
 #define DEFAULT_TAG 1
 #define LEFT_SEND_TAG 2
@@ -17,16 +23,13 @@
 #define DIM_X 0
 #define DIM_Y 1
 
-#define is_master(rank) (0 == rank)
-
-static void double_2d_array_allocation(double ***arr, double **content, int length, int width);
-static void double_2d_array_deallocation(double ***arr, double **content);
-
+/* Check arguments for user input */
 static void check_arg(int argc, char **argv, char **input_file_name, char **output_file_name);
-
+/* Boundary value for top & buttom */
 static double boundaryval(int i, int m);
 
-char *input_file_name, *output_file_name;
+
+char *input_file_name, *output_file_name; // file source & output target
 
 int main(int argc, char **argv)
 {
@@ -100,18 +103,6 @@ int main(int argc, char **argv)
 
     fprintf(stdout, "Rank %d reading from file %s...\n", rank, input_file_name);
     part_pgmread(input_file_name, &(img_edge[1][1]), plength, pwidth, coords[0] * x_step, coords[1] * y_step, 2);
-    // pgmread(input_file_name, master_content, length, width);
-
-    // Copy corresponding partition into img_edge
-    // for (int i = 0; i != plength; ++i)
-    // {
-    //     for (int j = 0; j != pwidth; ++j)
-    //     {
-    //         img_edge[i + 1][j + 1] = masterbuf[coords[DIM_X] * x_step + i][coords[DIM_Y] * y_step + j];
-    //         printf("%d ", img_edge[i + 1][j + 1] == buf[i + 1][j + 1]);
-    //     }
-    //     printf("\n");
-    // }
 
     // Processing
     for (int i = 0; i != plength + 2; ++i)
@@ -238,26 +229,6 @@ int main(int argc, char **argv)
         pgmwrite(output_file_name, master_content, length, width);
     }
 
-    // for (int i = 0; i != length; ++i)
-    // {
-    //     for (int j = 0; j != width; ++j)
-    //     {
-    //         masterbuf[i][j] = 0;
-    //     }
-    // }
-    // for (int i = 0; i != plength; ++i)
-    // {
-    //     for (int j = 0; j != pwidth; ++j)
-    //     {
-    //         masterbuf[coords[DIM_X] * x_step + i][coords[DIM_Y] * y_step + j] = img_old[i + 1][j + 1];
-    //     }
-    // }
-    // MPI_Reduce(master_content, master_content, length * width, MPI_DOUBLE, MPI_SUM, RANK_MASTER, comm);
-    // if (is_master(rank))
-    // {
-    //     pgmwrite(output_file_name, master_content, length, width);
-    // }
-
     printf("End processing on rank %d.\n", rank);
 
     // End
@@ -293,31 +264,6 @@ void check_arg(int argc, char **argv, char **input_file_name, char **output_file
     *input_file_name = argv[1];
     *output_file_name = argv[2];
     fprintf(stdout, "Argument checking finshed. Get input file name %s and output file name %s.\n", *input_file_name, *output_file_name);
-}
-
-void double_2d_array_allocation(double ***arr, double **content, int length, int width)
-{
-    if (NULL == (*arr = (double **)malloc(length * sizeof(double *))))
-    {
-        fprintf(stderr, "Allocation Failed.");
-        exit(-1);
-    }
-    if (NULL == (*content = (double *)malloc(length * width * sizeof(double))))
-    {
-        fprintf(stderr, "Allocation Failed.");
-        exit(-1);
-    }
-
-    for (int i = 0; i != length; ++i)
-    {
-        (*arr)[i] = *content + width * i;
-    }
-}
-
-void double_2d_array_deallocation(double ***arr, double **content)
-{
-    free(*content);
-    free(*arr);
 }
 
 double boundaryval(int i, int m)

@@ -254,7 +254,7 @@ void part_pgmread(char *filename, void *vx, int nx, int ny, int start_x, int sta
     for (i = 0; i < nx; i++)
     {
       iret = fscanf(fp, "%d", &t);
-      x[(ny - j - 1) + ny * i + i * row_offset] = t;
+      x[(ny - j - 1) + ny * i + i * row_offset  ] = t;
     }
     // Skip elements doesnot related to given grid
     for(int cnt = 0; cnt != nxt - nx; ++cnt) {

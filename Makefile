@@ -1,10 +1,10 @@
 CC = mpicc
-CFLAGS = -std=c99
+CFLAGS = -std=c99 -O3
 
 EXE = solution 
 
-SRC = main.c pgmio.c 
-INC = pgmio.h 
+SRC = main.c pgmio.c arraytool.c
+INC = pgmio.h arraytool.h
 OBJ = $(SRC:.c=.o)
 
 all : $(EXE)
