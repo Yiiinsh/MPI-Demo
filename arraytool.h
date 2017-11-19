@@ -1,4 +1,4 @@
-/* Tools for c continuous array allocation & deallocation */ 
+/* Tools for c continuous array allocation & deallocation */
 #ifndef __ARRAY_TOOL_H
 #define __ARRAY_TOOL_H
 
