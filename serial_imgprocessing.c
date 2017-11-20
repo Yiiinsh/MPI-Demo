@@ -1,11 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <time.h>
 
 #include "imgprocessing.h"
 #include "defs.h"
 #include "boundary.h"
 #include "arraytool.h"
 #include "pgmio.h"
+
+clock_t start, end; // time measurement
 
 /* 
  * Initialization Task
@@ -46,6 +50,7 @@ void init(char *input_file_name, int *length, int *width, int *plength, int *pwi
 void preprocessing(char *input_file_name, double **edge, double **old, double **new, int plength, int pwidth)
 {
     /* Preprocessing */
+    start = clock();
     fprintf(stdout, "Preprocessing...\n");
 
     /* Read image */
@@ -99,7 +104,7 @@ void processing(double **edge, double **old, double **new, int plength, int pwid
     /* Processing */
     fprintf(stdout, "Processing...\n");
 
-    for (int iter = 1; iter <= MAX_LOOP; ++iter)
+    for (int iter = 0; iter != MAX_LOOP; ++iter)
     {
         /* Implement periodic boundary conditions on left and right sides */
         for (int j = 1; j < pwidth + 1; j++)
@@ -116,12 +121,19 @@ void processing(double **edge, double **old, double **new, int plength, int pwid
             }
         }
 
+        double delta = 0;
         for (int i = 1; i < plength + 1; i++)
         {
             for (int j = 1; j < pwidth + 1; j++)
             {
+                delta = fabs(new[i][j] - old[i][j]) > delta ? fabs(new[i][j] - old[i][j]) : delta;
                 old[i][j] = new[i][j];
             }
+        }
+        if (delta <= THRESHOLD)
+        {
+            printf("Finish at iteration %d, with delta : %.5f\n", iter, delta);
+            break;
         }
     }
 
@@ -158,6 +170,8 @@ void postprocessing(char *output_file_name, double **old, int plength, int pwidt
 
     double_2d_array_deallocation(&buf, &buf_content);
     /* End postprocessing */
+    end = clock();
+    fprintf(stdout, "Execution time %.5f\n", (double)(end - start) / CLOCKS_PER_SEC);
     fprintf(stdout, "End postprocessing...\n");
 }
 
