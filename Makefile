@@ -15,7 +15,7 @@ SERIAL_OBJ = serial_imgprocessing.o
 all : $(PARALLEL_EXE)
 
 $(PARALLEL_EXE) : $(OBJ) $(PARALLEL_OBJ)
-	   $(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 $(OBJ) : %o : %c $(INC)
 	$(CC) $(CFLAGS) -c $<
@@ -24,8 +24,18 @@ $(OBJ) : %o : %c $(INC)
 serial : $(SERIAL_EXE)
 
 $(SERIAL_EXE) : $(OBJ) $(SERIAL_OBJ)
-		$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
+$(PARALLEL_OBJ) : $(PARALLEL_SRC) $(INC)
+	$(CC) $(CFLAGS) -c $<
+
+$(SERIAL_OBJ) : $(SERIAL_SRC) $(INC)
+	$(CC) $(CFLAGS) -c $<
+
+.PHONY: test
+test :
+	./test
+	
 .PHONY: clean
 clean :
 	rm -f $(OBJ) $(PARALLEL_EXE) $(SERIAL_EXE) $(PARALLEL_OBJ) $(SERIAL_OBJ)

@@ -1,0 +1,25 @@
+#!/bin/bash
+
+echo '------ make parallel version ------'
+make
+echo '------ make serial version ------'
+make serial
+
+echo '------ test on 192x128 ------'
+
+echo 'mpi run -n 9 ./parallel edgenew192x128.pbm paralleltest.pbm'
+mpirun -n 9 ./parallel edgenew192x128.pbm paralleltest.pbm &> /dev/null
+echo './serial edgenew192x128.pbm serialtest.pbm'
+./serial edgenew192x128.pbm serialtest.pbm &> /dev/null
+
+echo '------ check result ------'
+diff=$(diff paralleltest.pbm serialtest.pbm)
+if [ $diff ]; then
+    echo "FAIL"
+else
+    echo "PASS"
+fi
+
+echo '------ clean up ------'
+make clean
+rm paralleltest.pbm serialtest.pbm
