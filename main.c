@@ -49,7 +49,6 @@ int main(int argc, char **argv)
 
 void check_arg(int argc, char **argv)
 {
-    fprintf(stdout, "Checking arguments.\n");
     if (argc < 3)
     {
         fprintf(stderr, "Input & Output file name required.\n");
@@ -57,5 +56,4 @@ void check_arg(int argc, char **argv)
     }
     input_file_name = argv[1];
     output_file_name = argv[2];
-    fprintf(stdout, "Argument checking finshed. Get input file name %s and output file name %s.\n", input_file_name, output_file_name);
 }

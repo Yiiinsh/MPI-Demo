@@ -23,18 +23,12 @@ clock_t start, end; // time measurement
  */
 void init(char *input_file_name, int *length, int *width, int *plength, int *pwidth)
 {
-    /* Init */
-    fprintf(stdout, "Init...\n");
-
     /* Read file */
     pgmsize(input_file_name, length, width);
     *plength = *length;
     *pwidth = *width;
     fprintf(stdout, "Original file size %d x %d\n", *length, *width);
     fprintf(stdout, "Max iteration:%d\n", MAX_LOOP);
-
-    /* End init */
-    fprintf(stdout, "Init finished...\n");
 }
 
 /* 
@@ -49,10 +43,6 @@ void init(char *input_file_name, int *length, int *width, int *plength, int *pwi
  */
 void preprocessing(char *input_file_name, double **edge, double **old, double **new, int plength, int pwidth)
 {
-    /* Preprocessing */
-    start = clock();
-    fprintf(stdout, "Preprocessing...\n");
-
     /* Read image */
     double **buf;
     double *buf_content;
@@ -86,8 +76,6 @@ void preprocessing(char *input_file_name, double **edge, double **old, double **
     }
 
     double_2d_array_deallocation(&buf, &buf_content);
-    /* End preprocessing */
-    fprintf(stdout, "End preprocessing...\n");
 }
 
 /* 
@@ -101,10 +89,8 @@ void preprocessing(char *input_file_name, double **edge, double **old, double **
  */
 void processing(double **edge, double **old, double **new, int plength, int pwidth)
 {
-    /* Processing */
-    fprintf(stdout, "Processing...\n");
-
-    for (int iter = 0; iter != MAX_LOOP; ++iter)
+    start = clock();
+    for (int iter = 1; iter <= MAX_LOOP; ++iter)
     {
         /* Implement periodic boundary conditions on left and right sides */
         for (int j = 1; j < pwidth + 1; j++)
@@ -122,11 +108,13 @@ void processing(double **edge, double **old, double **new, int plength, int pwid
         }
 
         double delta = 0;
+        double sum = 0;
         for (int i = 1; i < plength + 1; i++)
         {
             for (int j = 1; j < pwidth + 1; j++)
             {
                 delta = fabs(new[i][j] - old[i][j]) > delta ? fabs(new[i][j] - old[i][j]) : delta;
+                sum += new[i][j];
                 old[i][j] = new[i][j];
             }
         }
@@ -135,10 +123,13 @@ void processing(double **edge, double **old, double **new, int plength, int pwid
             printf("Finish at iteration %d, with delta : %.5f\n", iter, delta);
             break;
         }
+        if (0 == iter % INTERVAL)
+        {
+            printf("Iter %d : average pixels %.3f\n", iter, sum / (plength * pwidth));
+        }
     }
-
-    /* End processing */
-    fprintf(stdout, "Processing finished...\n");
+    end = clock();
+    fprintf(stdout, "Iteration time %.5f\n", (double)(end - start) / CLOCKS_PER_SEC);
 }
 
 /* 
@@ -151,9 +142,6 @@ void processing(double **edge, double **old, double **new, int plength, int pwid
  */
 void postprocessing(char *output_file_name, double **old, int plength, int pwidth)
 {
-    /* Postprocessing */
-    fprintf(stdout, "Postprocessing...\n");
-
     double **buf;
     double *buf_content;
     double_2d_array_allocation(&buf, &buf_content, plength, pwidth);
@@ -169,10 +157,6 @@ void postprocessing(char *output_file_name, double **old, int plength, int pwidt
     pgmwrite(output_file_name, buf_content, plength, pwidth);
 
     double_2d_array_deallocation(&buf, &buf_content);
-    /* End postprocessing */
-    end = clock();
-    fprintf(stdout, "Execution time %.5f\n", (double)(end - start) / CLOCKS_PER_SEC);
-    fprintf(stdout, "End postprocessing...\n");
 }
 
 /* 
@@ -187,14 +171,8 @@ void postprocessing(char *output_file_name, double **old, int plength, int pwidt
  */
 void finalize(double **edge, double *edge_content, double **old, double *old_content, double **new, double *new_content)
 {
-    /* Finalize */
-    fprintf(stdout, "Finalize...\n");
-
     /* Memory deallocation */
     double_2d_array_deallocation(&new, &new_content);
     double_2d_array_deallocation(&old, &old_content);
     double_2d_array_deallocation(&edge, &edge_content);
-
-    /* End Finalization */
-    fprintf(stdout, "End finalization...\n");
 }

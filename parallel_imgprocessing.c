@@ -77,11 +77,6 @@ void init(char *input_file_name, int *length, int *width, int *plength, int *pwi
     /* Neighbor */
     MPI_Cart_shift(cart_comm, 0, 1, &neighbor[LEFT], &neighbor[RIGHT]);
     MPI_Cart_shift(cart_comm, 1, 1, &neighbor[DOWN], &neighbor[UP]);
-    fprintf(stdout, "Neighbors of rank %d : Left %d Right %d Up %d Down %d\n",
-            rank, neighbor[LEFT], neighbor[RIGHT], neighbor[UP], neighbor[DOWN]);
-
-    /* Init */
-    fprintf(stdout, "Init on rank %d...\n", rank);
 
     /* Source image size */
     pgmsize(input_file_name, length, width);
@@ -101,9 +96,6 @@ void init(char *input_file_name, int *length, int *width, int *plength, int *pwi
     plength_buf = *plength;
     pwidth_buf = *pwidth;
     fprintf(stdout, "Rank %d plength %d, pwidth %d\n", rank, *plength, *pwidth);
-
-    /* End init */
-    fprintf(stdout, "Init finished on rank %d...\n", rank);
 }
 
 /* 
@@ -118,13 +110,7 @@ void init(char *input_file_name, int *length, int *width, int *plength, int *pwi
  */
 void preprocessing(char *input_file_name, double **edge, double **old, double **new, int plength, int pwidth)
 {
-    /* Preprocessing */
-    MPI_Barrier(comm);
-    start = MPI_Wtime();
-    fprintf(stdout, "Rank %d preprocessing...\n", rank);
-
     /* Read Image */
-    fprintf(stdout, "Rank %d reading from file %s...\n", rank, input_file_name);
     part_pgmread(input_file_name, &(edge[1][1]), plength, pwidth, coords[DIM_X] * x_step, coords[DIM_Y] * y_step, 2);
 
     /* Old buf init */
@@ -154,9 +140,6 @@ void preprocessing(char *input_file_name, double **edge, double **old, double **
             old[i][0] = (int)(255.0 * val);
         }
     }
-
-    /* End preprocessing */
-    fprintf(stdout, "Rank %d preprocessing finished...\n", rank);
 }
 
 /* 
@@ -170,9 +153,6 @@ void preprocessing(char *input_file_name, double **edge, double **old, double **
  */
 void processing(double **edge, double **old, double **new, int plength, int pwidth)
 {
-    /* Processing */
-    fprintf(stdout, "Rank %d start processing...\n", rank);
-
     /* MPI Datatype declaration */
     MPI_Datatype column_type, row_type;
     MPI_Type_contiguous(pwidth + 2, MPI_DOUBLE, &column_type);
@@ -181,10 +161,12 @@ void processing(double **edge, double **old, double **new, int plength, int pwid
     MPI_Type_commit(&row_type);
 
     /* Iteration */
+    MPI_Barrier(comm);
+    start = MPI_Wtime();
     fprintf(stdout, "Rank %d start iteration...\n", rank);
     MPI_Request send_request[4];
     MPI_Status recv_status[4];
-    for (int cnt = 0; cnt != MAX_LOOP; ++cnt)
+    for (int iter = 1; iter <= MAX_LOOP; ++iter)
     {
         /* Issend halo */
         MPI_Issend(&(old[1][0]), 1, column_type, neighbor[LEFT], LEFT_SEND_TAG, comm, &send_request[LEFT]);
@@ -227,11 +209,13 @@ void processing(double **edge, double **old, double **new, int plength, int pwid
 
         /* Copy new to old */
         double delta = 0, overall_delta = 0;
+        double sum = 0, overall_sum = 0;
         for (int i = 1; i <= plength; ++i)
         {
             for (int j = 1; j <= pwidth; ++j)
             {
                 delta = fabs(new[i][j] - old[i][j]) > delta ? fabs(new[i][j] - old[i][j]) : delta;
+                sum += new[i][j];
                 old[i][j] = new[i][j];
             }
         }
@@ -240,18 +224,31 @@ void processing(double **edge, double **old, double **new, int plength, int pwid
         {
             if (is_master(rank))
             {
-                printf("Finish at iteration %d, with delta : %.5f\n", cnt, overall_delta);
+                printf("Finish at iteration %d, with delta : %.5f\n", iter, overall_delta);
             }
             break;
         }
+        if (0 == iter % INTERVAL)
+        {
+            MPI_Allreduce(&sum, &overall_sum, 1, MPI_DOUBLE, MPI_SUM, comm);
+            if (is_master(rank))
+            {
+                printf("Iter %d : average pixels %.3f\n", iter, overall_sum / (length_buf * width_buf));
+            }
+        }
     }
+    end = MPI_Wtime();
+    MPI_Barrier(comm);
 
     /* Resource free */
     MPI_Type_free(&column_type);
     MPI_Type_free(&row_type);
 
     /* End processing */
-    fprintf(stdout, "Rank %d processing finished...\n", rank);
+    if (is_master(rank))
+    {
+        fprintf(stdout, "Iteration time %.5f\n", end - start);
+    }
 }
 
 /* 
@@ -264,9 +261,6 @@ void processing(double **edge, double **old, double **new, int plength, int pwid
  */
 void postprocessing(char *output_file_name, double **old, int plength, int pwidth)
 {
-    /* Postprocessing */
-    fprintf(stdout, "Rank %d start postprocessing...\n", rank);
-
     /* Gather partial image */
     if (!is_master(rank))
     {
@@ -319,15 +313,6 @@ void postprocessing(char *output_file_name, double **old, int plength, int pwidt
         /* Memory deallocation */
         double_2d_array_deallocation(&masterbuf, &master_content);
     }
-
-    /* End postprocessing */
-    end = MPI_Wtime();
-    MPI_Barrier(comm);
-    if (is_master(rank))
-    {
-        fprintf(stdout, "Execution time %.5f\n", end - start);
-    }
-    fprintf(stdout, "Rank %d postprocessing finished...\n", rank);
 }
 
 /* 
@@ -342,9 +327,6 @@ void postprocessing(char *output_file_name, double **old, int plength, int pwidt
  */
 void finalize(double **edge, double *edge_content, double **old, double *old_content, double **new, double *new_content)
 {
-    /* Finalize */
-    fprintf(stdout, "Rank %d start finalization...\n", rank);
-
     /* Memory deallocation */
     double_2d_array_deallocation(&new, &new_content);
     double_2d_array_deallocation(&old, &old_content);
@@ -352,7 +334,4 @@ void finalize(double **edge, double *edge_content, double **old, double *old_con
 
     /* MPI Finalize */
     MPI_Finalize();
-
-    /* End Finalization */
-    fprintf(stdout, "Rank %d finalization end...\n", rank);
 }
