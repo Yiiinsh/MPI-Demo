@@ -208,7 +208,6 @@ void pgmwrite(char *filename, void *vx, int nx, int ny)
  * 
  *  Note that this assumes a single line comment and no other white space.
  */
-
 void part_pgmread(char *filename, void *vx, int nx, int ny, int start_x, int start_y, int row_offset)
 {
   FILE *fp;

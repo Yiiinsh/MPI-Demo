@@ -1,22 +1,32 @@
 CC = mpicc
 CFLAGS = -std=c99 -O3
 
-EXE = solution 
+PARALLEL_EXE = parallel 
+SERIAL_EXE = serial
 
-SRC = main.c pgmio.c arraytool.c
-INC = pgmio.h arraytool.h
+SRC = main.c pgmio.c arraytool.c boundary.c
+INC = pgmio.h arraytool.h defs.h imgprocessing.h boundary.h
+PARALLEL_SRC = parallel_imgprocessing.c
+SERIAL_SRC = serial_imgprocessing.c
 OBJ = $(SRC:.c=.o)
+PARALLEL_OBJ = parallel_imgprocessing.o
+SERIAL_OBJ = serial_imgprocessing.o
 
-all : $(EXE)
+all : $(PARALLEL_EXE)
 
-$(EXE) : $(OBJ)
+$(PARALLEL_EXE) : $(OBJ) $(PARALLEL_OBJ)
 	   $(CC) $(CFLAGS) -o $@ $^
 
 $(OBJ) : %o : %c $(INC)
 	$(CC) $(CFLAGS) -c $<
 
+.PHONY: serial
+serial : $(SERIAL_EXE)
+
+$(SERIAL_EXE) : $(OBJ) $(SERIAL_OBJ)
+		$(CC) $(CFLAGS) -o $@ $^
 
 .PHONY: clean
 clean :
-	rm -f $(OBJ) $(EXE)
+	rm -f $(OBJ) $(PARALLEL_EXE) $(SERIAL_EXE) $(PARALLEL_OBJ) $(SERIAL_OBJ)
 
