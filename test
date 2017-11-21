@@ -1,25 +1,94 @@
 #!/bin/bash
 
+sources=(
+		edgenew192x128.pbm
+		edgenew256x192.pbm
+		edgenew512x384.pbm
+		edgenew768x768.pbm
+	)
+
+targets=(
+		serial192x128.pbm
+		serial256x192.pbm
+		serial512x384.pbm
+		serial768x768.pbm
+	)
+
+parallels=(
+		parallel192x128.pbm
+		parallel256x192.pbm
+		parallel512x384.pbm
+		parallel768x768.pbm
+	  )
+
+file_cnt=${#sources[@]}
+
+processors=(
+		2
+		3
+		4
+		5
+		6
+		9
+		12
+	   )
+
 echo '------ make parallel version ------'
-make
+echo 'make'
+IGNORE=$(make)
+echo 'parallel'
+echo
+
 echo '------ make serial version ------'
-make serial
+echo 'make serial'
+IGNORE=$(make serial)
+echo 'serial'
+echo
 
-echo '------ test on 192x128 ------'
+echo '------ serial base file ------'
+for(( i = 0; i<$file_cnt;i++));
+do
+	./serial ${sources[$i] } ${targets[$i]} &> /dev/null
+	echo ${sources[$i]}' -> '${targets[$i]}
+	echo
+done
 
-echo 'mpi run -n 9 ./parallel edgenew192x128.pbm paralleltest.pbm'
-mpirun -n 9 ./parallel edgenew192x128.pbm paralleltest.pbm &> /dev/null
-echo './serial edgenew192x128.pbm serialtest.pbm'
-./serial edgenew192x128.pbm serialtest.pbm &> /dev/null
+echo '------ test with 9 processes on all test file ------'
+for(( i = 0; i<$file_cnt;i++));
+do
+	echo 'mpirun -n 9 ./parallel '${sources[$i]}' '${parallels[$i]}
+	mpirun -n 9 ./parallel ${sources[$i]} ${parallels[$i]} &> /dev/null
+	echo 'diff '${targets[$i]}' '${parallels[$i]}
+	diff=$(diff ${targets[$i]} ${parallels[$i]})
 
-echo '------ check result ------'
-diff=$(diff paralleltest.pbm serialtest.pbm)
-if [ $diff ]; then
-    echo "FAIL"
-else
-    echo "PASS"
-fi
+	echo $diff
+	if [ $diff ]; then
+		echo "FAIL"
+	else
+		echo "PASS"
+	fi
+	echo
+done
+
+echo '------ test with n processes on '${sources[0]}' ------'
+for n in ${processors[@]}; do
+	echo 'Test with n = '$n
+	echo 'mpirun -n '$n' ./parallel '${sources[0]}' '${parallels[0]}
+	mpirun -n $n ./parallel ${sources[0]} ${parallels[0]} &> /dev/null
+	echo 'diff '${parallels[0]}' '${targets[0]}
+	diff=$(diff ${parallels[0]} ${targets[0]})
+
+	echo $diff
+	if [[ $diff ]]; then
+		echo "FAIL"
+	else
+		echo "PASS"
+	fi
+	echo
+done
 
 echo '------ clean up ------'
-make clean
-rm paralleltest.pbm serialtest.pbm
+echo 'make clean'
+make clean &> /dev/null
+echo 'rm parallel*.pbm serial*.pbm'
+rm parallel*.pbm serial*.pbm
