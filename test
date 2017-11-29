@@ -73,7 +73,7 @@ done
 echo '------ test with n processes on '${sources[0]}' ------'
 for n in ${processors[@]}; do
 	echo 'Test with n = '$n
-	echo 'mpirun -n '$n' ./parallel img/'${sources[0]}' img'${parallels[0]}
+	echo 'mpirun -n '$n' ./parallel img/'${sources[0]}' img/'${parallels[0]}
 	mpirun -n $n ./parallel img/${sources[0]} img/${parallels[0]} &> /dev/null
 	echo 'diff img/'${parallels[0]}' img'${targets[0]}
 	diff=$(diff img/${parallels[0]} img/${targets[0]})
