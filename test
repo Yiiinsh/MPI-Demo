@@ -48,18 +48,18 @@ echo
 echo '------ serial base file ------'
 for(( i = 0; i<$file_cnt;i++));
 do
-	./serial ${sources[$i] } ${targets[$i]} &> /dev/null
-	echo ${sources[$i]}' -> '${targets[$i]}
+	./serial img/${sources[$i]} img/${targets[$i]} &> /dev/null
+	echo 'img/'${sources[$i]}' -> img/'${targets[$i]}
 	echo
 done
 
 echo '------ test with 9 processes on all test file ------'
 for(( i = 0; i<$file_cnt;i++));
 do
-	echo 'mpirun -n 9 ./parallel '${sources[$i]}' '${parallels[$i]}
-	mpirun -n 9 ./parallel ${sources[$i]} ${parallels[$i]} &> /dev/null
-	echo 'diff '${targets[$i]}' '${parallels[$i]}
-	diff=$(diff ${targets[$i]} ${parallels[$i]})
+	echo 'mpirun -n 9 ./parallel img/'${sources[$i]}' img/'${parallels[$i]}
+	mpirun -n 9 ./parallel img/${sources[$i]} img/${parallels[$i]} &> /dev/null
+	echo 'diff img/'${targets[$i]}' img/'${parallels[$i]}
+	diff=$(diff img/${targets[$i]} img/${parallels[$i]})
 
 	echo $diff
 	if [ $diff ]; then
@@ -73,10 +73,10 @@ done
 echo '------ test with n processes on '${sources[0]}' ------'
 for n in ${processors[@]}; do
 	echo 'Test with n = '$n
-	echo 'mpirun -n '$n' ./parallel '${sources[0]}' '${parallels[0]}
-	mpirun -n $n ./parallel ${sources[0]} ${parallels[0]} &> /dev/null
-	echo 'diff '${parallels[0]}' '${targets[0]}
-	diff=$(diff ${parallels[0]} ${targets[0]})
+	echo 'mpirun -n '$n' ./parallel img/'${sources[0]}' img'${parallels[0]}
+	mpirun -n $n ./parallel img/${sources[0]} img/${parallels[0]} &> /dev/null
+	echo 'diff img/'${parallels[0]}' img'${targets[0]}
+	diff=$(diff img/${parallels[0]} img/${targets[0]})
 
 	echo $diff
 	if [[ $diff ]]; then
@@ -90,5 +90,5 @@ done
 echo '------ clean up ------'
 echo 'make clean'
 make clean &> /dev/null
-echo 'rm parallel*.pbm serial*.pbm'
-rm parallel*.pbm serial*.pbm
+echo 'rm img/parallel*.pbm img/serial*.pbm'
+rm img/parallel*.pbm img/serial*.pbm
